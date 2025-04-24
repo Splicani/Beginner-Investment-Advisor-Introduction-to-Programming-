@@ -12,28 +12,20 @@ from MertCodev1 import (
 
 st.set_page_config(page_title="Beginner Investment Advisor", layout="wide")
 st.title("📊 Beginner Investment Advisor")
-st.write("Answer the questions one by one to receive a personalized investment recommendation.")
+st.write("Answer all questions below to receive a personalized investment recommendation.")
 
 # Initialize session state
-total_questions = len(QUESTIONNAIRE)
-if "current_q" not in st.session_state:
-    st.session_state.current_q = 0
 if "answers" not in st.session_state:
     st.session_state.answers = {}
 
-# Show one question at a time
-q_idx = st.session_state.current_q
-if q_idx < total_questions:
-    q = QUESTIONNAIRE[q_idx]
-    st.subheader(f"Question {q_idx + 1} of {total_questions}")
-    answer = st.radio(q["text"], q["options"], key=f"q_{q_idx}")
-    if st.button("Next"):
+with st.form("questionnaire_form"):
+    for q in QUESTIONNAIRE:
+        answer = st.radio(q["text"], q["options"], key=f"q_{q['id']}")
         st.session_state.answers[q["id"]] = q["options"].index(answer)
-        st.session_state.current_q += 1
-        st.experimental_rerun()
 
-# After all questions
-if q_idx == total_questions:
+    submitted = st.form_submit_button("Get Recommendation")
+
+if submitted:
     answers = st.session_state.answers
     profile = map_answers_to_profile(answers)
     asset_class = derive_asset_class(profile)
@@ -75,8 +67,3 @@ if q_idx == total_questions:
                 f"- **{name}** ({cls}) `{tkr}`  \
                 PE: `{itm.get('trailingPE','N/A')}`, DY: `{itm.get('dividendYield','N/A')}`, Score: `{itm.get('score',0):.2f}`"
             )
-
-    if st.button("Start Over"):
-        st.session_state.current_q = 0
-        st.session_state.answers = {}
-        st.experimental_rerun()
