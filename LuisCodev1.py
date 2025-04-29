@@ -12,21 +12,57 @@ tick_labels: Dict[int, str] = {
 }
 
 ASSET_UNIVERSE: Dict[str, Dict[str, List[str]]] = {
-    # Placeholder — fill in with real tickers per region/asset_class
+    Dict[str, Dict[str, List[str]]] = {
     "Europe": {
-        "etf": ["SPY"],
-        "bonds": ["AGG"],
-        "stocks": ["SAP.DE"]
+        "etf": [
+            "IESG.L", "IUSK.DE", "IUSK.F", "IESE.AS", "IDSE.AS",
+            "IEUR", "VWCE.DE", "EXW1.DE", "DBX1.DE", "CSP1.L",
+            "XESC.DE", "SXR8.DE", "EUNL.DE", "IWDA.AS", "EUN2.DE"
+        ],
+        "bonds": [
+            "GRNB.L", "EMB", "AGGG.L", "USAG.SW", "BGRN",
+            "EBND.DE", "EUNA.DE", "BND", "AGG", "XG7S.DE",
+            "IBCI.DE", "IBGS.DE", "XDWD.DE", "VETY.DE", "DBEF.DE"
+        ],
+        "stocks": [
+            "ORSTED.CO", "ADS.DE", "PHIA.AS", "SIE.DE", "SAP.DE",
+            "ASML.AS", "LIN.DE", "NOVO-B.CO", "OR.PA", "AD.AS",
+            "NESN.SW", "VIV.PA", "BMW.DE", "SHEL.L", "SU.TO"
+        ]
     },
     "North America": {
-        "etf": ["QQQ"],
-        "bonds": ["BND"],
-        "stocks": ["AAPL"]
+        "etf": [
+            "SUSA", "ESGV", "SPYL.DE", "SPY", "QQQ",
+            "VTI", "IVV", "DIA", "IWM", "XLF",
+            "XLK", "XLV", "VOO", "CSP1.L", "IWDA.AS"
+        ],
+        "bonds": [
+            "BGRN", "USAG.SW", "IGSB", "SJNK", "AGG",
+            "BND", "TLT", "LQD", "HYG", "BNDX",
+            "MBB", "TIP", "SHY", "EMB", "SPDR_BRE"
+        ],
+        "stocks": [
+            "AAPL", "MSFT", "ADBE", "CRM", "JNJ",
+            "AMZN", "GOOGL", "JPM", "XOM", "TSLA",
+            "BRK-B", "META", "NVDA", "PG", "UNH"
+        ]
     },
     "Emerging Markets": {
-        "etf": ["VWO"],
-        "bonds": ["EMB"],
-        "stocks": ["TSM"]
+        "etf": [
+            "ESGE", "EEMX", "EEM", "VWO", "IEMG",
+            "EMQQ", "SCHE", "XMME.DE", "EEMS", "EMXC",
+            "HMEF.L", "EMB", "VWOB", "IGOV", "PCY"
+        ],
+        "bonds": [
+            "HYGD", "EMBB", "IGOV", "EMLC", "EMHY",
+            "ILTB", "EMB", "VWOB", "SCHP", "TIP",
+            "BGRN", "AGG", "BND", "TLT", "LQD"
+        ],
+        "stocks": [
+            "TSM", "BABA", "INFY.NS", "TCS.NS", "VALE3.SA",
+            "NIO", "HDFCBANK.NS", "TCEHY", "005930.KS", "601318.SS",
+            "ITUB", "PBR", "MTN", "SU.TO", "GOLD"
+        ]
     }
 }
 
