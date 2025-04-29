@@ -7,9 +7,9 @@ from LuisCodev1 import (
     map_answers_to_profile,
     derive_risk_level,
     get_region_risk_etf,
-    generate_recommendation,
+    generate_full_recommendation,
     PRODUCT_INFO,
-    RISK_LEVEL_NAME
+    tick_labels
 )
 
 st.set_page_config(page_title="Beginner Investment Advisor", layout="wide")
@@ -35,11 +35,11 @@ if submitted:
     st.subheader("🧑‍💼 Your Investor Profile")
     st.json(profile)
 
-    st.write(f"**Risk Level:** {rl} ({RISK_LEVEL_NAME[rl]})")
+    st.write(f"**Risk Level:** {rl} ({tick_labels[rl]})")
     region = st.selectbox("🌍 Choose a region:", ["Europe", "North America", "Emerging Markets", "Any"])
 
     if region:
-        result = generate_recommendation(answers, region)
+        result = generate_full_recommendation(answers, region)
         primary_etf = result["primary_etf"]["ticker"]
         name, cls = PRODUCT_INFO.get(primary_etf, (primary_etf, "ETF"))
 
