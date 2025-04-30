@@ -15,6 +15,15 @@ RISK_LEVEL_NAME = {
     5: "Aggressive"
 }
 
+# Define tick_labels for risk levels
+tick_labels = {
+    1: "Defensive",
+    2: "Conservative",
+    3: "Balanced",
+    4: "Growth Tilt",
+    5: "Aggressive"
+}
+
 # 1. Predefined asset universe per region and asset class (15 tickers each)
 ASSET_UNIVERSE: Dict[str, Dict[str, List[str]]] = {
     "Europe": {
@@ -250,6 +259,10 @@ PRODUCT_INFO={
     "IWM":("iShares Russell 2000 ETF","ETF"),
     # … expand for all tickers …
 }
+
+# Define generate_full_recommendation as a wrapper for generate_recommendation
+def generate_full_recommendation(answers, region):
+    return generate_recommendation(answers, region)
 
 # 16. Generate recommendation
 def generate_recommendation(ans,region):
