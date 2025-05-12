@@ -168,16 +168,34 @@ def apply_filters(items, filters):
     return [it for it in items if ok(it)]
 
 # 7. Scoring
-def score_item(it,w):
-    ev=it.get("ev_ebitda") or 30
-    f =it.get("fcf_yield") or 0
-    v =it.get("volatility") or 0.40
-    e =it.get("esgScore")   or 50
-    ne=max(0,min(1,(30-ev)/30))
-    nf=min(1,f/0.05)
-    nv=max(0,min(1,(0.40-v)/0.40))
-    ns=max(0,min(1,e/100))
-    return ne*w["ev_ebitda"]+nf*w["fcf_yield"]+nv*w["volatility"]+ns*w["esgScore"]
+def score_item(item, weights):
+    ev = item.get("ev_ebitda")
+    fcf = item.get("fcf_yield")
+    vol = item.get("volatility")
+    esg = item.get("esgScore")
+
+    if ev is None or ev <= 0:
+        ev = 20
+    if fcf is None:
+        fcf = 0.02
+    if vol is None:
+        vol = 0.3
+    if esg is None:
+        esg = 50
+
+    score_ev = max(0, min(1, (20 - ev) / 15))
+    score_fcf = max(0, min(1, fcf / 0.10))
+    score_vol = max(0, min(1, (0.5 - vol) / 0.4))
+    score_esg = max(0, min(1, esg / 100))
+
+    total_score = (
+        score_ev * weights["ev_ebitda"] +
+        score_fcf * weights["fcf_yield"] +
+        score_vol * weights["volatility"] +
+        score_esg * weights["esgScore"]
+    ) / 100
+
+    return total_score
 
 # 8. Universe helper
 def get_user_universe(region,asset_class,esg_only):
@@ -217,26 +235,39 @@ QUESTIONNAIRE=[
 
 # 11. Map answers → profile
 def map_answers_to_profile(a):
-    return {q["id"]:QUESTIONNAIRE[q["id"]]["options"][a[q["id"]]] for q in QUESTIONNAIRE}
+    profile = {}
+    for q in QUESTIONNAIRE:
+        qid = q["id"]
+        if qid in a:
+            answer_index = a[qid]
+            options = q["options"]
+            if 0 <= answer_index < len(options):
+                profile[qid] = options[answer_index]
+    return profile
 
 # 12. Composite risk level
 def derive_risk_level(a):
-    w={1:0.20,2:0.30,4:0.20,7:0.15,8:0.15}
-    s1,s2,s4,s7,s8=a[1]/4,a[2]/4,a[4]/4,a[7]/4,a[8]/3
-    comp=s1*w[1]+s2*w[2]+s4*w[4]+s7*w[7]+s8*w[8]
-    if comp<0.20: return 1
-    if comp<0.40: return 2
-    if comp<0.60: return 3
-    if comp<0.80: return 4
+    required_keys = [1, 2, 4, 7, 8]
+    if not all(k in a for k in required_keys):
+        return 3  # Default to balanced if incomplete
+
+    w = {1: 0.20, 2: 0.30, 4: 0.20, 7: 0.15, 8: 0.15}
+    s1, s2, s4, s7, s8 = a[1]/4, a[2]/4, a[4]/4, a[7]/4, a[8]/3
+    comp = s1*w[1] + s2*w[2] + s4*w[4] + s7*w[7] + s8*w[8]
+
+    if comp < 0.20: return 1
+    if comp < 0.40: return 2
+    if comp < 0.60: return 3
+    if comp < 0.80: return 4
     return 5
 
 # 13. Allocation overrides
 def get_allowed_allocations(a):
     rl=derive_risk_level(a)
     alloc=RISK_ALLOCATION[rl].copy()
-    if a[1]==0:
+    if a.get(1) == 0:
         return {"bonds":1.0,"etf":0.0,"stocks":0.0}
-    if a[6]<=1:
+    if a.get(6, 99) <= 1:
         alloc["stocks"]=0.0
         s=alloc["bonds"]+alloc["etf"]
         if s>0:
@@ -257,89 +288,52 @@ PRODUCT_INFO={
     "IEUR":("iShares Core MSCI Europe ETF","ETF"),
     "SPY":("SPDR S&P 500 ETF Trust","ETF"),
     "IWM":("iShares Russell 2000 ETF","ETF"),
-    # … expand for all tickers …
+   
 }
+def generate_full_recommendation(answers):
+    return generate_recommendation(answers)
 
-# Define generate_full_recommendation as a wrapper for generate_recommendation
-def generate_full_recommendation(answers, region):
-    return generate_recommendation(answers, region)
+def generate_recommendation(ans):
+    profile = map_answers_to_profile(ans)
+    esg_only = profile.get(13, "No") == "Yes"
+    rl = derive_risk_level(ans)
+    alloc = get_allowed_allocations(ans)
 
-# 16. Generate recommendation
-def generate_recommendation(ans,region):
-    profile=map_answers_to_profile(ans)
-    esg_only=(profile[13]=="Yes")
-    rl=derive_risk_level(ans)
-    primary=get_region_risk_etf(region,rl)
-    alloc=get_allowed_allocations(ans)
+    combined = []
 
-    combined=[]
-    for cls,w in alloc.items():
-        if w<=0: continue
-        recs=map_user_to_recommendations(region,cls,rl,esg_only)
-        for r in recs:
-            r["asset_class"],r["class_weight"]=cls,w
-            r["final_score"]=r["score"]*w
-        combined+=recs
+    for region in ["Europe", "North America", "Emerging Markets"]:
+        region_products = []
 
-    final=sorted(combined,key=lambda x:x["final_score"],reverse=True)
+        for cls, w in alloc.items():
+            if w <= 0:
+                continue
+
+            recs = map_user_to_recommendations(region, cls, rl, esg_only)
+            for r in recs:
+                r["region"] = region
+                r["asset_class"] = cls
+                r["class_weight"] = w
+                r["final_score"] = r["score"] * w
+
+                if r["ticker"] not in PRODUCT_INFO:
+                    try:
+                        info = yf.Ticker(r["ticker"]).info
+                        long_name = info.get("longName", r["ticker"])
+                        sector = info.get("sector", cls.capitalize())
+                        PRODUCT_INFO[r["ticker"]] = (long_name, sector)
+                    except:
+                        PRODUCT_INFO[r["ticker"]] = (r["ticker"], cls.capitalize())
+
+            region_products += recs
+
+        top_region_recs = sorted(region_products, key=lambda x: x["final_score"], reverse=True)[:2]
+        combined += top_region_recs
+
+    primary = get_region_risk_etf("Europe", rl)
+
     return {
-        "investor_profile":profile,
-        "risk_level":rl,
-        "primary_etf":primary,
-        "recommendations":final
+        "investor_profile": profile,
+        "risk_level": rl,
+        "primary_etf": primary,
+        "recommendations": combined
     }
-
-# 17. Interactive CLI
-if __name__=="__main__":
-    print("Welcome to the Beginner Investment Advisor!\n")
-    answers={}
-    for q in QUESTIONNAIRE:
-        print(q["text"])
-        for i,opt in enumerate(q["options"]):
-            print(f"  {i}: {opt}")
-        while True:
-            try:
-                c=int(input(f"Select (0-{len(q['options'])-1}): "))
-                if 0<=c<len(q["options"]):
-                    answers[q["id"]]=c
-                    break
-            except ValueError:
-                pass
-        print()
-
-    profile=map_answers_to_profile(answers)
-    print("Your Investor Profile:",profile)
-
-    regions=list(ASSET_UNIVERSE.keys())+["Any"]
-    print("\nChoose a region (or Any):")
-    for i,r in enumerate(regions):
-        print(f"  {i}: {r}")
-    while True:
-        try:
-            ri=int(input(f"Select (0-{len(regions)-1}): "))
-            if 0<=ri<len(regions):
-                region=regions[ri]
-                break
-        except ValueError:
-            pass
-    print()
-
-    result=generate_recommendation(answers,region)
-    rl=result["risk_level"]
-    # print correct global risk-bucket name
-    print(f"Risk Level: {rl} ({RISK_LEVEL_NAME[rl]})")
-
-    pef=result["primary_etf"]["ticker"]
-    name,cls=PRODUCT_INFO.get(pef,(pef,"ETF"))
-    print(f"Primary Recommendation: {name} ({cls}) [{pef}]\n")
-
-    print("Top 5 Recommendations:")
-    for itm in result["recommendations"][:5]:
-        t=itm["ticker"]
-        name,cls=PRODUCT_INFO.get(t,(t,itm["asset_class"].capitalize()))
-        ev=itm.get("ev_ebitda");evs=f"{ev:.2f}" if ev else "N/A"
-        fcf=itm.get("fcf_yield");fcfs=f"{fcf:.2%}" if fcf else "N/A"
-        vol=itm.get("volatility");vols=f"{vol:.2%}" if vol else "N/A"
-        esg=itm.get("esgScore");esgs=f"{esg:.0f}" if esg else "N/A"
-        fs=itm.get("final_score",0)
-        print(f"- {name} ({cls}) [{t}]: EV/EBITDA={evs}, FCF Yield={fcfs}, Vol={vols}, ESG={esgs}, Score={fs:.2f}")

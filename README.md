@@ -5,3 +5,5 @@ This Python‑based tool is designed to guide absolute beginners through a  frie
 README.md  <-- Project overview
 MertCodev1 <-- Original logic from Mert
 app.py     <-- Streamlit interface
+
+Install dependencies: `pip install -r requirements.txt`
