@@ -1,0 +1,8 @@
+streamlit
+pandas
+yfinance
+weasyprint
+dotenv
+openai
+matplotlib
+fpdf2
